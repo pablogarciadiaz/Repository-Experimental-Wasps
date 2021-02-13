@@ -1,3 +1,4 @@
+### SCRIPT GENERATING DATA FOR THE OPTIMAL DESIGN ALGORITHM
 ##### Data: http://maps.elie.ucl.ac.be/CCI/viewer/index.php ### Water bodies 4.0
 
 ### Webpage https://mgimond.github.io/Spatial/point-pattern-analysis-in-r.html
