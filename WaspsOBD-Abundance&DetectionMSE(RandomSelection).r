@@ -236,7 +236,7 @@ stopImplicitCluster()
 for (j in 2:n.sim){
 
     #### Propose a new design
-    new.site<-round(runif(1, 2, 100), digits=0)						### Number of survey sites
+    new.site<-round(runif(1, 2, 10), digits=0)						### Number of survey sites
 
     new.aveffort<-runif(1, 1000, 1500)                      ### Mean effort per cell (in metres walked)
 
