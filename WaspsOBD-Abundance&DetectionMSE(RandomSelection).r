@@ -26,30 +26,9 @@ library(modeest)
 library(truncdist)
 
 ### Load data
-data.wasp<-read.table("e:/CONTAIN/Wasps/Wasps2020/Nest-Count-OptimalExperimental.csv", header=TRUE, sep=",")
+data.wasp<-read.table("e:/CONTAIN/Experimental Design/Wasps/Nest-Count-OptimalExperimental2.csv", header=TRUE, sep=",")
 
 summary(data.wasp)
-
-### New data calls
-data.wasp$call.prob<-ifelse(data.wasp$random.eff!=0, 1, 0)
-
-### Select only those cells that are land (not ocean)
-invalid.obs<-which(is.na(data.wasp$pop.dens)==TRUE)
-
-data.wasp<-data.wasp1<-data.wasp[-invalid.obs, ]
-
-#### Land uses
-data.wasp$land.cov<-as.numeric(data.wasp$land.use)
-
-summary(data.wasp)
-
-data.wasp
-
-### Number of land cover types
-n.use<-max(data.wasp$land.cov)
-
-n.use
-
 
 #### Nimble model to fit
 model.wt<-nimbleCode({
@@ -113,7 +92,7 @@ model.wt<-nimbleCode({
 
 
 #### Utility function to determine the inverse of the determinant
-ut.fun1<-function(n.site, n.use, av.eff, sd.eff, n.occ, data.wasp){
+ut.fun1<-function(n.site, av.eff, sd.eff, n.occ, data.wasp){
 
     ### Define effort
     effort<-rnorm(n.site, av.eff, sd.eff)
@@ -126,6 +105,14 @@ ut.fun1<-function(n.site, n.use, av.eff, sd.eff, n.occ, data.wasp){
     #### Data-generation function
     data.wasp<-data.wasp[random.samp, ]
 
+    #### Land uses
+    data.wasp$land.use<-factor(data.wasp$land.use)
+
+    data.wasp$land.cov<-as.numeric(data.wasp$land.use)
+
+    ### Number of land cover types
+    n.use<-max(data.wasp$land.cov)
+
     ### Population density & standardise
     density<-(data.wasp$pop.dens-mean(data.wasp$pop.dens))/sd(data.wasp$pop.dens)
 
@@ -137,15 +124,15 @@ ut.fun1<-function(n.site, n.use, av.eff, sd.eff, n.occ, data.wasp){
     #### Water body length in each cell
     water.length<-(data.wasp$lenght.water-mean(data.wasp$lenght.water))/sd(data.wasp$lenght.water)
 
-    cov.data<-data.frame(pop.dens=density, mean.ndvi=mean.ndvi, var.ndvi=var.ndvi, water.length=water.length)
+    cov.data<-data.frame(land.cov=data.wasp$land.cov, pop.dens=density, mean.ndvi=mean.ndvi, var.ndvi=var.ndvi, water.length=water.length)
 
     ######## Data-generation part
     #### Initial abundance in each cell
-    alpha.ab<-rnorm(n.use, 0, 1)
+    alpha.ab<-rnorm(n.use, 0, 2)
 
-    beta.ab<-c(runif(3, 0, 1), runif(1, -1, 1))
+    beta.ab<-c(runif(3, 0, 2), runif(1, -1, 1))
 
-    mean.pop<-exp(alpha.ab[data.wasp$land.cov]+beta.ab[1]*cov.data$pop.dens+beta.ab[2]*cov.data$mean.ndvi+beta.ab[3]*cov.data$water.length+beta.ab[4]*cov.data$var.ndvi)
+    mean.pop<-exp(alpha.ab[cov.data$land.cov]+beta.ab[1]*cov.data$pop.dens+beta.ab[2]*cov.data$mean.ndvi+beta.ab[3]*cov.data$water.length+beta.ab[4]*cov.data$var.ndvi)
 
     n0<-rpois(n.site, lambda=mean.pop)
 
@@ -170,13 +157,13 @@ ut.fun1<-function(n.site, n.use, av.eff, sd.eff, n.occ, data.wasp){
     ### Data for the model
     data.tot<-list(y0=y0, effort=log10(effort+1), param=c(n0, alpha.det, beta.det),
     mean.ndvi=cov.data$mean.ndvi, var.ndvi=cov.data$var.ndvi, pop.dens=cov.data$pop.dens,
-     water.length=cov.data$water.length)
+     water.length=cov.data$water.length, land.cov=cov.data$land.cov)
 
-    inits<-list(alpha.det=0, beta.det=0, alpha.ab=0, beta.ab=rep(0, 4),
+    inits<-list(alpha.det=0, beta.det=0, alpha.ab=rep(0, n.use), beta.ab=rep(0, 4),
                 n0=apply(y0, 1, max)*2)
 
     ### Constants
-    constants<-list(n.site=n.site, n.occ=n.occ, slope.ab=4)
+    constants<-list(n.site=n.site, n.use=n.use, n.occ=n.occ, slope.ab=4)
 
     ###### THE MODEL
     Rmodel<-nimbleModel(code=model.wt, constants=constants, data=data.tot, inits=inits)
