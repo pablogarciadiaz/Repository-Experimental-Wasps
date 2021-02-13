@@ -382,3 +382,5 @@ summary(det.ab)
 ### Export
 
 write.table(det.ab, "e:/CONTAIN/Wasps/Wasps2020/Nest-Count-OptimalExperimental.csv", sep=",")
+
+write.table(det.ab, "e:/CONTAIN/Experimental Design/Wasps/Nest-Count-OptimalExperimental.csv", sep=",")

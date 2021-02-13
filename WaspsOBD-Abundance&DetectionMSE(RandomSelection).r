@@ -205,7 +205,7 @@ n.core<-5
 
 #### Simulations
 ### Number of simulation steps
-n.sim<-500
+n.sim<-200
 
 n.site<-av.eff<-sd.eff<-rep(NA, n.sim)
 
