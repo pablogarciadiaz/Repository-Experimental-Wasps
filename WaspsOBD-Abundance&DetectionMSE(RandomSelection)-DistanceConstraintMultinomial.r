@@ -208,7 +208,7 @@ max.dist[1]<-round(qunif(lh[, 2], n.site[1]*1*1000, n.site[1]*5*1000))  #### Max
 
 n.occ<-2
 
-### Multinomial distribution of values
+### Choosing cells based on their distance to CEHUM
 dist<-round(rnorm(nrow(data.wasp), 10000, 1000), digits=-3)
 
 dist
@@ -236,6 +236,10 @@ for (i in 1:length(id.sel)){
     id.sel[i]<-sample(which(dist==sel.band[i]), number.per.band[i])
 
 }
+
+#### Chosen data
+data.wasp<-data.wasp[id.sel, ]
+
 
 #### Simulating stuff!!
 ### Number of repeats per step
