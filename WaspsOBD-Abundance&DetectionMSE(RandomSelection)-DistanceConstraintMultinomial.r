@@ -1,7 +1,6 @@
 #### Bayesian optimal design - Wasps Quadratic Loss - minimise the 1/(msqe)
 #### Script 2 - optimal design in 2 visits, how many sites? MH algorithm
-#### Chosen purely at random - land use as a random effect
-##### Varying distance surveyed in each cell + number of sites
+#### Trade-offs number of sites vs distance walked & maximum distance walked
 ##### Effort within function
 ##### MSE: abundance per cell & detection coefficients
 ### Multinomial distribution of values
@@ -44,50 +43,42 @@ model.wt<-nimbleCode({
     ### Intercept of the abundance model
     alpha.ab~dnorm(0, var=100)
 
+    ### Quadratic error
+    quad.loss[1]<-pow(param[1]-alpha.ab, 2)
+
     ### Slopes of the abundance model
     for (j in 1:slope.ab){
 
         beta.ab[j]~dnorm(0, var=100)
 
+        quad.loss[j+1]<-pow(param[j+1]-beta.ab[j], 2)
     }
 
-    #### Detection
-    alpha.det~dnorm(0, var=100)
+    ### Probability of detection
+    p.det~dbeta(1, 1)
 
-    beta.det~dnorm(0, var=100)
+    quad.loss[slope.ab+2]<-pow(param[slope.ab+2]-p.det, 2)
 
     ### 1st session before control
 
     for (i in 1:n.site){
 
         ### Abundance
-        log(mean.ab[i])<-alpha.ab+beta.ab[1]*pop.dens[i]+beta.ab[2]*mean.ndvi[i]+beta.ab[3]*var.ndvi[i]+beta.ab[4]*water.length[i]
+        log(mean.ab[i])<-alpha.ab+beta.ab[1]*mean.ndvi[i]+beta.ab[2]*var.ndvi[i]+beta.ab[3]*water.length[i]
 
         n0[i]~dpois(mean.ab[i])
 
-        ### Quadratic error
-        quad.loss[i]<-pow(param[i]-n0[i], 2)
-
-        #### Detection
-        logit(p.det1[i])<-alpha.det+beta.det*effort[i]
-
-            ### Subsequent occasions
+            ### Survey occasions
             for (j in 1:n.occ){
 
-                p.det2[i, j]<-p.det1[i]
-
-                y0[i, j]~dbinom(p.det2[i, j], n0[i])
+                y0[i, j]~dbinom(p.det, n0[i])
 
             }
 
     }
 
-    ### Mean loss
-    quad.loss[n.site+1]<-pow(param[n.site+1]-alpha.det, 2)
-
-    quad.loss[n.site+2]<-pow(param[n.site+2]-beta.det, 2)
-
-    loss.fun<-mean(quad.loss[1:(n.site+2)])
+    ### Mean squared error
+    loss.fun<-mean(quad.loss[1:(slope.ab+2)])
 
 })
 
@@ -98,16 +89,14 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
     ### Define effort per cell (walking distance)
     effort<-rep(500*transect.reps, n.site)
 
-    stdz.eff<-(effort-mean(effort))/sd(effort)
-
     ### Choosing cells based on their distance to CEHUM
-    seq.tot<-seq(min(data.wasp$dist.cehum), max(data.wasp$dist.cehum), by=1000)
+    seq.tot<-seq(min(data.wasp$dist.cehum), max(data.wasp$dist.cehum), by=5000)
 
     seq.band<-seq.tot[-length(seq.tot)]
 
-    #weight.fun<-function(x) length(which(data.wasp$dist.cehum>=x[1] & data.wasp$dist.cehum<x[1]+1000))
+    weight.fun<-function(x) length(which(data.wasp$dist.cehum>=x & data.wasp$dist.cehum<x+5000))
 
-    #count.cells.per.band<-sapply(seq.band, weight.fun)
+    count.cells.per.band<-sapply(seq.band, weight.fun)
 
     #weight.vals<-count.cells.per.band*(1/seq.band)
 
@@ -119,15 +108,12 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
     number.per.band<-cell.per.band[which(cell.per.band!=0)]
 
     ### Sampling at random from the selected bands
-    sel.fun<-function(x) sample(which(data.wasp$dist.cehum>=x[1] & data.wasp$dist.cehum<x[1]+1000), x[2])
+    sel.fun<-function(x) sample(which(data.wasp$dist.cehum>=x[1] & data.wasp$dist.cehum<x[1]+5000), x[2])
 
     id.sel<-c(unlist(apply(data.frame(sel.band, number.per.band), 1, sel.fun)))
 
     #### Chosen data
     data.wasp<-data.wasp[id.sel, ]
-
-    ### Population density & standardise
-    density<-(data.wasp$pop.dens-mean(data.wasp$pop.dens))/sd(data.wasp$pop.dens)
 
     ### NDVI
     mean.ndvi<-(data.wasp$median.ndvi-mean(data.wasp$median.ndvi))/sd(data.wasp$median.ndvi)
@@ -137,22 +123,22 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
     #### Water body length in each cell
     water.length<-(data.wasp$lenght.water-mean(data.wasp$lenght.water))/sd(data.wasp$lenght.water)
 
-    cov.data<-data.frame(pop.dens=density, mean.ndvi=mean.ndvi, var.ndvi=var.ndvi, water.length=water.length)
+    cov.data<-data.frame(mean.ndvi=mean.ndvi, var.ndvi=var.ndvi, water.length=water.length)
 
-    cov.data
+    #cov.data
 
     ######## Data-generation part
     #### Initial abundance in each cell
     alpha.ab<-rnorm(1, 0, 2)
 
-    beta.ab<-c(runif(3, 0, 2), runif(1, -1, 1))
+    beta.ab<-c(runif(2, 0, 2), runif(1, -1, 1))
 
-    mean.pop<-exp(alpha.ab+beta.ab[1]*cov.data$pop.dens+beta.ab[2]*cov.data$mean.ndvi+beta.ab[3]*cov.data$water.length+beta.ab[4]*cov.data$var.ndvi)
+    mean.pop<-exp(alpha.ab+beta.ab[1]*cov.data$mean.ndvi+beta.ab[2]*cov.data$water.length+beta.ab[3]*cov.data$var.ndvi)
 
     n0<-rpois(n.site, lambda=mean.pop)
 
     ### Intercept and slope of the effect of survey effort
-    alpha.det<-runif(1, -5, 5)
+    alpha.det<-runif(1, -5, 0)
 
     beta.det<-runif(1, 0, 5)
 
@@ -162,7 +148,7 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
     for (i in 1:n.site){
 
             ### Probability of detection by site and occasion
-            p.det1<-plogis(alpha.det+beta.det*stdz.eff[i]))
+            p.det1<-plogis(alpha.det+beta.det*log10(effort[i]))
 
             y0[i, ]<-rbinom(2, n0[i], p.det1)
 
@@ -170,15 +156,14 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
 
    ## Bayesian modelling
     ### Data for the model
-    data.tot<-list(y0=y0, effort=stdz.eff, param=c(n0, alpha.det, beta.det),
-    mean.ndvi=cov.data$mean.ndvi, var.ndvi=cov.data$var.ndvi, pop.dens=cov.data$pop.dens,
-     water.length=cov.data$water.length, land.cov=cov.data$land.cov)
+    data.tot<-list(y0=y0, param=c(alpha.ab, beta.ab, p.det1),
+    mean.ndvi=cov.data$mean.ndvi, var.ndvi=cov.data$var.ndvi, water.length=cov.data$water.length)
 
-    inits<-list(alpha.det=0, beta.det=0, alpha.ab=0, beta.ab=rep(0, 4),
+    inits<-list(p.det=runif(1, 0, 1), alpha.ab=0, beta.ab=rep(0, 3),
                 n0=apply(y0, 1, max)*2)
 
     ### Constants
-    constants<-list(n.site=n.site, n.use=n.use, n.occ=n.occ, slope.ab=4)
+    constants<-list(n.site=n.site, n.occ=n.occ, slope.ab=3)
 
     ###### THE MODEL
     Rmodel<-nimbleModel(code=model.wt, constants=constants, data=data.tot, inits=inits)
@@ -207,7 +192,7 @@ n.core<-5
 
 #### Simulations
 ### Number of simulation steps
-n.sim<-5
+n.sim<-20
 
 n.site<-transect.reps<-tot.dist<-rep(NA, n.sim)
 
@@ -224,7 +209,7 @@ n.occ<-2
 
 #### Simulating stuff!!
 ### Number of repeats per step
-n.rep<-20
+n.rep<-10
 
 ut.sim<-rep(NA, n.sim)      ### To store utility value
 
@@ -251,17 +236,17 @@ stopImplicitCluster()
 
 for (j in 2:n.sim){
 
-    #### Propose a new design
-    new.site<-round(runif(1, 2, 10), digits=0)						### Number of survey sites
+    new.transect.reps<-round(runif(1, 1, 6), digits=0)                #### Number of 500-metre sections per site
 
-    new.aveffort<-runif(1, 1000, 1500)                      ### Mean effort per cell (in metres walked)
+    new.tot.dist<-round(runif(1, 10000, 50000), digits=0)                #### Total distance walked to distribute across sites
 
-    new.sdeffort<-runif(1, 100, 500)                      ### Standard error of the effort per site (metres walked)
+    new.site<-round(new.tot.dist/(500*new.transect.reps), digits=0)
 
     ### Estimate the utility of the new design
     registerDoParallel(n.core)
 
-    new.ut<-foreach(i=1:n.rep, .combine = c, .packages=c("nimble")) %dopar% ut.fun(new.site, new.aveffort, new.sdeffort, n.occ=n.occ, data.wasp=data.wasp)
+    new.ut<-foreach(i=1:n.rep, .combine = c, .packages=c("nimble")) %dopar% ut.fun(new.site, new.transect.reps,
+                new.tot.dist, n.occ=n.occ, data.wasp=data.wasp)
 
     curr.ut<-median(new.ut, na.rm=TRUE)
 
@@ -279,9 +264,9 @@ for (j in 2:n.sim){
 
          n.site[j]<-new.site
 
-         av.eff[j]<-new.aveffort
+         transect.reps[j]<-new.transect.reps
 
-         sd.eff[j]<-new.sdeffort
+         tot.dist[j]<-new.tot.dist
 
      }else{                              ### Reject proposal and keep previous iteration
 
@@ -289,10 +274,9 @@ for (j in 2:n.sim){
 
          n.site[j]<-n.site[j-1]
 
-         av.eff[j]<-av.eff[j-1]
+         transect.reps[j]<-transect.reps[j-1]
 
-         sd.eff[j]<-sd.eff[j-1]
-
+         tot.dist[j]<-tot.dist[j-1]
      }
 
     setTxtProgressBar(pb, j)
@@ -316,7 +300,9 @@ hist(ut.sim)
 
 n.site
 
-sd.eff
+transect.reps
+
+tot.dist
 
 ## Plotting
 par(mfrow=c(2, 2))
@@ -324,18 +310,18 @@ par(mfrow=c(2, 2))
 plot(ut.sim~c(1:n.sim), type="l", lwd=2, xlab="Iteration", ylab="Utility", main="MH Search - Inverse of MSE")
 
 #### Number of cells to survey
-hist(n.site, xlab="Number of cells to survey", main="Number of cells to survey randomly")
+hist(n.site, xlab="Number of cells to survey", main="Number of cells to survey")
 
-#### Mean effort
-hist(av.eff, xlab="Mean survey effort (metres)",
-            main="Mean survey effort (metres walked)")
+#### Sections per cell
+hist(transect.reps, xlab="Number of 500-m transects per cell",
+            main="Number of 500-m transects per cell")
 
-#### SD effort
-hist(sd.eff, xlab="Standard deviation of the survey effort (metres)",
-            main="Standard deviation of the survey effort (metres walked)")
+#### Total walking effort across all cells
+hist(tot.dist, xlab="Total distance walked (metres)",
+            main="Total distance across all sits (metres walked)")
 
 
-### Optimal design based on the mean, median, and mode of each trap (n.trap = 12)
+### Optimal design based on the mean, median, and mode of each trap
 library(modeest)
 
 ### Mode
@@ -344,46 +330,46 @@ mode.site<-meanshift(n.site)
 
 mode.site
 
-## Mean effort
-mode.meaneff<-meanshift(av.eff)
+## 500-m sections per cell
+mode.reps<-meanshift(transect.reps)
 
-mode.meaneff
+mode.reps
 
-## Variance effort
-mode.vareff<-meanshift(sd.eff)
+## Total distance walked
+mode.totdist<-meanshift(tot.dist)
 
-mode.vareff
+mode.totdist
 
 ### Mean
 mean.site<-mean(n.site)
 
 mean.site
 
-mean.meaneff<-mean(av.eff)
+mean.reps<-mean(transect.reps)
 
-mean.meaneff
+mean.reps
 
-mean.sdeff<-sd(sd.eff)
+mean.totdist<-mean(tot.dist)
 
-mean.sdeff
+mean.totdist
 
 ### Median
 median.site<-median(n.site)
 
 median.site
 
-median.meaneff<-median(av.eff)
+median.reps<-median(transect.reps)
 
-median.meaneff
+median.reps
 
-median.sdeff<-sd(sd.eff)
+median.totdist<-median(tot.dist)
 
-median.sdeff
+median.totdist
 
 #### Export table
-data.exp<-data.frame(mode.site=meanshift(n.site), mode.meaneff=meanshift(av.eff), mode.vareff=meanshift(sd.eff),
-    mean.site=mean(n.site), mean.meaneff=mean(av.eff), mean.sdeff=sd(sd.eff),
-    median.site=median(n.site), median.meaneff=median(av.eff), median.sdeff=sd(sd.eff))
+data.exp<-data.frame(mode.site=meanshift(n.site), mode.reps=meanshift(transect.reps), mode.totdist=meanshift(tot.dist),
+    mean.site=mean(n.site), mean.reps=mean(transect.reps), mean.totdist=mean(tot.dist),
+    median.site=median(n.site), median.reps=median(transect.reps), median.tot.dist=median(tot.dist))
 
 data.exp
 
