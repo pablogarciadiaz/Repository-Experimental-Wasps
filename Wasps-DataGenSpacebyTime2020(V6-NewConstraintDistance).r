@@ -1,4 +1,5 @@
-### SCRIPT GENERATING DATA FOR THE OPTIMAL DESIGN ALGORITHM
+### SCRIPT GENERATING DATA FOR THE OPTIMAL DESIGN ALGORITHM - CONSIDERING THE WHOLE REGION
+### 500 x 500 metres & distance between CEHUM & sites
 ##### Data: http://maps.elie.ucl.ac.be/CCI/viewer/index.php ### Water bodies 4.0
 
 ### Webpage https://mgimond.github.io/Spatial/point-pattern-analysis-in-r.html
@@ -44,79 +45,33 @@ distance.tot.cehum<-round(apply(cent.grid, 1, function(x) sqrt((x[1]-x.cehum)^2+
 ### Define the geographical window from the grid
 win.grid<-as.owin(as.vector(extent(shape.grid)))
 
-#### Rasterize
-r.pres<-rasterize(shape.wasps, ras.wasps, field=rep(1, length(shape.wasps$ID_NEST)), fun='count', background=0)
+### Create raster
+res.raster<-500          ### Resolution - 500 metres in length
 
-values(r.pres)
+ext.ras<-extent(shape.grid)
 
-summary(values(r.pres))
+### Number of columns of the raster (x)
+ras.col<-round((ext.ras[2]-ext.ras[1])/res.raster, digits=0)
 
-plot(r.pres)
+ras.col
 
-plot(shape.wasps, add=TRUE)
+### Number of rows of the raster (y)
+ras.row<-round((ext.ras[4]-ext.ras[3])/res.raster, digits=0)
 
-########### TRACKS EFFORT
-### Tracks
-effort.wasps<-readOGR("e:/CONTAIN/Wasps/Wasps2020/Tracks.shp")
+ras.row
 
-effort.wasps
+### Create empty raster
+ras.wasps<-raster(ext=ext.ras, nrow=ras.row, ncol=ras.col)
 
-plot(effort.wasps)
+crs(ras.wasps)<-"+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"
 
-### Subset by survey type
-random.search<-effort.wasps[effort.wasps$SEARCH=="Random", ]
+values(ras.wasps)<-1
 
-semi.search<-effort.wasps[effort.wasps$SEARCH=="Semi-targeted", ]
-
-target.search<-effort.wasps[effort.wasps$SEARCH=="Targeted", ]
-
-### Rasters
-rsp<-rasterToPolygons(ras.wasps)
-crs(rsp)<-"+proj=utm +zone=18 +south +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"
-
-### Random search
-rast.random<-intersect(random.search, rsp)
-
-plot(rast.random)
-
-rast.random$transect.length<-gLength(rast.random, byid=TRUE)
-
-effort.random<-rasterize(rast.random, ras.wasps, field=rep(1, length(rast.random$transect.length)), fun='sum', background=0)
-
-summary(effort.random)
-
-plot(effort.random)
-
-### Semi-targeted search
-rast.semi<-intersect(semi.search, rsp)
-
-plot(rast.semi)
-
-rast.semi$transect.length<-gLength(rast.semi, byid=TRUE)
-
-effort.semi<-rasterize(rast.semi, ras.wasps, field=rep(1, length(rast.semi$transect.length)), fun='sum', background=0)
-
-summary(effort.semi)
-
-plot(effort.semi)
-
-
-### Targeted search
-rast.target<-intersect(target.search, rsp)
-
-plot(rast.target)
-
-rast.target$transect.length<-gLength(rast.target, byid=TRUE)
-
-effort.target<-rasterize(rast.target, ras.wasps, field=rep(1, length(rast.target$transect.length)), fun='sum', background=0)
-
-summary(effort.target)
-
-plot(effort.target)
+### Check a plot
+plot(ras.wasps)
 
 ####### Extract values to data frame
-det.ab<-data.frame(n.nest=values(r.pres), random.eff=values(effort.random), semi.eff=values(effort.semi), target.eff=values(effort.target),
-        tot.eff=values(effort.random)+values(effort.semi)+values(effort.target), dist.cehum=distance.tot.cehum)
+det.ab<-data.frame(dist.cehum=distance.tot.cehum)
 
 ######################################################## COVARIATES
 #### Water stuff - length of water in each cell

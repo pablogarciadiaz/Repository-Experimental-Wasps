@@ -197,18 +197,45 @@ n.core<-5
 ### Number of simulation steps
 n.sim<-200
 
-n.site<-av.eff<-sd.eff<-rep(NA, n.sim)
+n.site<-max.dist<-rep(NA, n.sim)
 
 #### Initial design
-lh<-improvedLHS(1, 3, dup=5)								### Generate values
+lh<-improvedLHS(1, 2, dup=5)								### Generate values
 
-n.site[1]<-round(qunif(lh[,1], 2, 10))						### Number of survey sites
+n.site[1]<-round(qunif(lh[,1], 2, 10), digits=0)						### Number of survey sites
 
-av.eff[1]<-qunif(lh[, 2], 1000, 1500)                         						### Mean effort per site (distance walked)
-
-sd.eff[1]<-qunif(lh[, 3], 100, 500)                      ### Standard error of the effort per site (distance walked)
+max.dist[1]<-round(qunif(lh[, 2], n.site[1]*1*1000, n.site[1]*5*1000))  #### Maximum total distance walked
 
 n.occ<-2
+
+### Multinomial distribution of values
+dist<-round(rnorm(nrow(data.wasp), 10000, 1000), digits=-3)
+
+dist
+
+seq.tot<-seq(min(dist), max(dist), by=1000)
+
+seq.tot
+
+#### Number of cells for each band of distance to CEHUM (the closeer the better)
+cell.per.band<-rmultinom(1, n.site[1], 1/seq.tot)
+
+sel.band<-seq.tot[which(cell.per.band!=0)]
+
+sel.band
+
+number.per.band<-cell.per.band[which(cell.per.band!=0)]
+
+number.per.band
+
+### Sampling at random from the selected bands
+id.sel<-rep(NA, sum(number.per.band))
+
+for (i in 1:length(id.sel)){
+
+    id.sel[i]<-sample(which(dist==sel.band[i]), number.per.band[i])
+
+}
 
 #### Simulating stuff!!
 ### Number of repeats per step
