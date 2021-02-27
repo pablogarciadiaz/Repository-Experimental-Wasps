@@ -37,8 +37,14 @@ nrow(data.wasp)
 model.wt<-nimbleCode({
 
     ### Priors
-    ### Intercept of the abundance model
-    alpha.ab~dnorm(0, var=100)
+    ### Intercepts of the abundance model - land uses
+    for (i in 1:n.use){
+
+        alpha.ab[i]~dnorm(0, var=var.int)
+
+    }
+
+    var.int~dunif(0, 100)
 
     ### Slopes of the abundance model
     for (j in 1:slope.ab){
@@ -57,7 +63,7 @@ model.wt<-nimbleCode({
     for (i in 1:n.site){
 
         ### Abundance
-        log(mean.ab[i])<-alpha.ab+beta.ab[1]*pop.dens[i]+beta.ab[2]*mean.ndvi[i]+beta.ab[3]*var.ndvi[i]+beta.ab[4]*water.length[i]
+        log(mean.ab[i])<-alpha.ab[land.cov[i]]+beta.ab[1]*pop.dens[i]+beta.ab[2]*mean.ndvi[i]+beta.ab[3]*var.ndvi[i]+beta.ab[4]*water.length[i]
 
         n0[i]~dpois(mean.ab[i])
 
@@ -89,36 +95,26 @@ model.wt<-nimbleCode({
 
 
 #### Utility function to determine the inverse of the determinant
-ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
+ut.fun1<-function(n.site, av.eff, sd.eff, n.occ, data.wasp){
 
-    ### Define effort per cell (walking distance)
-    effort<-rep(500*transect.reps, n.site)
+    ### Define effort
+    effort<-rnorm(n.site, av.eff, sd.eff)
 
-    stdz.eff<-(effort-mean(effort))/sd(effort)
+    effort<-ifelse(effort<=0, av.eff, effort)
 
-    ### Choosing cells based on their distance to CEHUM
-    seq.tot<-seq(min(data.wasp$dist.cehum), max(data.wasp$dist.cehum), by=1000)
+    ### Select cells to survey at random
+    random.samp<-sample(c(1:nrow(data.wasp)), n.site)
 
-    weight.fun<-function(x) length(which(data.wasp$dist.cehum>=x[1] & data.wasp$dist.cehum<x[1]+1000))
+    #### Data-generation function
+    data.wasp<-data.wasp[random.samp, ]
 
-    count.cells.per.band<-sapply(seq.tot, weight.fun)
+    #### Land uses
+    data.wasp$land.use<-factor(data.wasp$land.use)
 
-    weight.vals<-count.cells.per.band*(1/seq.tot)
+    data.wasp$land.cov<-as.numeric(data.wasp$land.use)
 
-    #### Number of cells for each band of distance to CEHUM (the closeer the better)
-    cell.per.band<-rmultinom(1, n.site[1], weight.vals)
-
-    sel.band<-seq.tot[which(cell.per.band!=0)]
-
-    number.per.band<-cell.per.band[which(cell.per.band!=0)]
-
-    ### Sampling at random from the selected bands
-    sel.fun<-function(x) sample(which(data.wasp$dist.cehum>=x[1] & data.wasp$dist.cehum<x[1]+1000), x[2])
-
-    id.sel<-c(unlist(apply(data.frame(sel.band, number.per.band), 1, sel.fun)))
-
-    #### Chosen data
-    data.wasp<-data.wasp[id.sel, ]
+    ### Number of land cover types
+    n.use<-max(data.wasp$land.cov)
 
     ### Population density & standardise
     density<-(data.wasp$pop.dens-mean(data.wasp$pop.dens))/sd(data.wasp$pop.dens)
@@ -131,15 +127,15 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
     #### Water body length in each cell
     water.length<-(data.wasp$lenght.water-mean(data.wasp$lenght.water))/sd(data.wasp$lenght.water)
 
-    cov.data<-data.frame(pop.dens=density, mean.ndvi=mean.ndvi, var.ndvi=var.ndvi, water.length=water.length)
+    cov.data<-data.frame(land.cov=data.wasp$land.cov, pop.dens=density, mean.ndvi=mean.ndvi, var.ndvi=var.ndvi, water.length=water.length)
 
     ######## Data-generation part
     #### Initial abundance in each cell
-    alpha.ab<-rnorm(1, 0, 2)
+    alpha.ab<-rnorm(n.use, 0, 2)
 
     beta.ab<-c(runif(3, 0, 2), runif(1, -1, 1))
 
-    mean.pop<-exp(alpha.ab+beta.ab[1]*cov.data$pop.dens+beta.ab[2]*cov.data$mean.ndvi+beta.ab[3]*cov.data$water.length+beta.ab[4]*cov.data$var.ndvi)
+    mean.pop<-exp(alpha.ab[cov.data$land.cov]+beta.ab[1]*cov.data$pop.dens+beta.ab[2]*cov.data$mean.ndvi+beta.ab[3]*cov.data$water.length+beta.ab[4]*cov.data$var.ndvi)
 
     n0<-rpois(n.site, lambda=mean.pop)
 
@@ -199,7 +195,7 @@ n.core<-5
 
 #### Simulations
 ### Number of simulation steps
-n.sim<-5
+n.sim<-10
 
 n.site<-transect.reps<-tot.dist<-rep(NA, n.sim)
 
@@ -213,6 +209,8 @@ tot.dist[1]<-round(qunif(lh[, 2], 10000, 50000), digits=0)                #### T
 n.site[1]<-round(tot.dist[1]/(500*transect.reps[1]), digits=0)
 
 n.occ<-2
+
+
 
 #### Simulating stuff!!
 ### Number of repeats per step
@@ -229,8 +227,7 @@ pb<-txtProgressBar(min = 0, max = n.sim, style = 3)
 #### First design
 registerDoParallel(n.core)
 
-rep.sim<-foreach(i=1:n.rep, .combine = c, .packages=c("nimble")) %dopar% ut.fun(n.site[1], transect.reps=transect.reps[1],
-                    tot.dist=tot.dist[1], n.occ=n.occ, data.wasp=data.wasp)
+rep.sim<-foreach(i=1:n.rep, .combine = c, .packages=c("nimble")) %dopar% ut.fun(n.site[1], av.eff=av.eff[1], sd.eff=sd.eff[1], n.occ=n.occ, data.wasp=data.wasp)
 
 ut.sim[1]<-median(rep.sim, na.rm=TRUE)
 
