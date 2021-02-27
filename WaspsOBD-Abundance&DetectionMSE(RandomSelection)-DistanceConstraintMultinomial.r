@@ -162,7 +162,7 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
     for (i in 1:n.site){
 
             ### Probability of detection by site and occasion
-            p.det1<-plogis(alpha.det+beta.det*log10(effort[i]+1))
+            p.det1<-plogis(alpha.det+beta.det*effort[i]))
 
             y0[i, ]<-rbinom(2, n0[i], p.det1)
 
@@ -170,11 +170,11 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
 
    ## Bayesian modelling
     ### Data for the model
-    data.tot<-list(y0=y0, effort=log10(effort+1), param=c(n0, alpha.det, beta.det),
+    data.tot<-list(y0=y0, effort=effort, param=c(n0, alpha.det, beta.det),
     mean.ndvi=cov.data$mean.ndvi, var.ndvi=cov.data$var.ndvi, pop.dens=cov.data$pop.dens,
      water.length=cov.data$water.length, land.cov=cov.data$land.cov)
 
-    inits<-list(alpha.det=0, beta.det=0, alpha.ab=rep(0, n.use), beta.ab=rep(0, 4),
+    inits<-list(alpha.det=0, beta.det=0, alpha.ab=0, beta.ab=rep(0, 4),
                 n0=apply(y0, 1, max)*2)
 
     ### Constants
