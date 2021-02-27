@@ -6,8 +6,6 @@
 ##### MSE: abundance per cell & detection coefficients
 ### Multinomial distribution of values
 
-sum(rmultinom(1, max.km, dist))
-
 ### Load the libraries
 library(coda)
 library(MASS)
@@ -29,9 +27,11 @@ library(modeest)
 library(truncdist)
 
 ### Load data
-data.wasp<-read.table("e:/CONTAIN/Experimental Design/Wasps/Nest-Count-OptimalExperimental2.csv", header=TRUE, sep=",")
+data.wasp<-read.table("e:/CONTAIN/Experimental Design/Wasps/Nest-Count-OptimalExperimental.csv", header=TRUE, sep=",")
 
 summary(data.wasp)
+
+nrow(data.wasp)
 
 #### Nimble model to fit
 model.wt<-nimbleCode({
@@ -195,25 +195,23 @@ n.core<-5
 
 #### Simulations
 ### Number of simulation steps
-n.sim<-200
+n.sim<-10
 
-n.site<-max.dist<-rep(NA, n.sim)
+n.site<-transect.reps<-tot.dist<-rep(NA, n.sim)
 
 #### Initial design
 lh<-improvedLHS(1, 2, dup=5)								### Generate values
 
-n.site[1]<-round(qunif(lh[,1], 2, 10), digits=0)						### Number of survey sites
+transect.reps[1]<-round(qunif(lh[, 1], 1, 6))                #### Number of 500-metre sections per site
 
-max.dist[1]<-round(qunif(lh[, 2], n.site[1]*1*1000, n.site[1]*5*1000))  #### Maximum total distance walked
+tot.dist[1]<-round(qunif(lh[, 2], 10000, 50000), digits=0)                #### Total distance walked to distribute across sites
+
+n.site[1]<-round(tot.dist[1]/(500*transect.reps[1]), digits=0)
 
 n.occ<-2
 
 ### Choosing cells based on their distance to CEHUM
-dist<-round(rnorm(nrow(data.wasp), 10000, 1000), digits=-3)
-
-dist
-
-seq.tot<-seq(min(dist), max(dist), by=1000)
+seq.tot<-seq(min(data.wasp$dist.cehum), max(data.wasp$dist.cehum), by=1000)
 
 seq.tot
 
@@ -229,13 +227,9 @@ number.per.band<-cell.per.band[which(cell.per.band!=0)]
 number.per.band
 
 ### Sampling at random from the selected bands
-id.sel<-rep(NA, sum(number.per.band))
+sel.fun<-function(x) sample(which(data.wasp$dist.cehum>=x[1] & data.wasp$dist.cehum<x[1]+1000), x[2], replace=TRUE)
 
-for (i in 1:length(id.sel)){
-
-    id.sel[i]<-sample(which(dist==sel.band[i]), number.per.band[i])
-
-}
+id.sel<-c(unlist(apply(data.frame(sel.band, number.per.band), 1, sel.fun)))
 
 #### Chosen data
 data.wasp<-data.wasp[id.sel, ]
