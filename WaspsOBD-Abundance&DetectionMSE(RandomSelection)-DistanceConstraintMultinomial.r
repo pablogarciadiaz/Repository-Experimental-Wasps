@@ -192,7 +192,7 @@ n.core<-5
 
 #### Simulations
 ### Number of simulation steps
-n.sim<-20
+n.sim<-200
 
 n.site<-transect.reps<-tot.dist<-rep(NA, n.sim)
 
@@ -209,7 +209,7 @@ n.occ<-2
 
 #### Simulating stuff!!
 ### Number of repeats per step
-n.rep<-10
+n.rep<-50
 
 ut.sim<-rep(NA, n.sim)      ### To store utility value
 
