@@ -28,7 +28,18 @@ shape.grid
 
 plot(shape.grid)
 
-coordinates(shape.grid)
+### Centroids of each cell
+cent.grid<-coordinates(shape.grid)
+
+#### Location of CEHUm
+x.cehum<-649573.53
+
+y.cehum<-5593520.26
+
+points(x.cehum, y.cehum, pch=19)
+
+#### Euclidean distance between CEHUM and each cell
+distance.tot.cehum<-round(apply(cent.grid, 1, function(x) sqrt((x[1]-x.cehum)^2+(x[2]-y.cehum)^2)), digits=0)
 
 ### Define the geographical window from the grid
 win.grid<-as.owin(as.vector(extent(shape.grid)))
@@ -154,7 +165,7 @@ plot(effort.target)
 
 ####### Extract values to data frame
 det.ab<-data.frame(n.nest=values(r.pres), random.eff=values(effort.random), semi.eff=values(effort.semi), target.eff=values(effort.target),
-        tot.eff=values(effort.random)+values(effort.semi)+values(effort.target))
+        tot.eff=values(effort.random)+values(effort.semi)+values(effort.target), dist.cehum=distance.tot.cehum)
 
 ######################################################## COVARIATES
 #### Water stuff - length of water in each cell
