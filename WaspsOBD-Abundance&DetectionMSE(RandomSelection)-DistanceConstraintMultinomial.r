@@ -29,6 +29,10 @@ library(truncdist)
 ### Load data
 data.wasp<-read.table("e:/CONTAIN/Experimental Design/Wasps/Nest-Count-OptimalExperimental.csv", header=TRUE, sep=",")
 
+id.exc<-which(data.wasp$pop.dens==0 | is.na(data.wasp$pop.dens))
+
+data.wasp<-data.wasp[-id.exc, ]
+
 summary(data.wasp)
 
 nrow(data.wasp)
@@ -99,16 +103,18 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
     ### Choosing cells based on their distance to CEHUM
     seq.tot<-seq(min(data.wasp$dist.cehum), max(data.wasp$dist.cehum), by=1000)
 
+    seq.band<-seq.tot[-length(seq.tot)]
+
     weight.fun<-function(x) length(which(data.wasp$dist.cehum>=x[1] & data.wasp$dist.cehum<x[1]+1000))
 
-    count.cells.per.band<-sapply(seq.tot, weight.fun)
+    count.cells.per.band<-sapply(seq.band, weight.fun)
 
-    weight.vals<-count.cells.per.band*(1/seq.tot)
+    weight.vals<-count.cells.per.band*(1/seq.band)
 
     #### Number of cells for each band of distance to CEHUM (the closeer the better)
-    cell.per.band<-rmultinom(1, n.site[1], weight.vals)
+    cell.per.band<-rmultinom(1, n.site[1], 1/seq.band)
 
-    sel.band<-seq.tot[which(cell.per.band!=0)]
+    sel.band<-seq.band[which(cell.per.band!=0)]
 
     number.per.band<-cell.per.band[which(cell.per.band!=0)]
 
@@ -132,6 +138,8 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
     water.length<-(data.wasp$lenght.water-mean(data.wasp$lenght.water))/sd(data.wasp$lenght.water)
 
     cov.data<-data.frame(pop.dens=density, mean.ndvi=mean.ndvi, var.ndvi=var.ndvi, water.length=water.length)
+
+    cov.data
 
     ######## Data-generation part
     #### Initial abundance in each cell
