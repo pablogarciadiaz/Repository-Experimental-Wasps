@@ -105,11 +105,11 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
 
     seq.band<-seq.tot[-length(seq.tot)]
 
-    weight.fun<-function(x) length(which(data.wasp$dist.cehum>=x[1] & data.wasp$dist.cehum<x[1]+1000))
+    #weight.fun<-function(x) length(which(data.wasp$dist.cehum>=x[1] & data.wasp$dist.cehum<x[1]+1000))
 
-    count.cells.per.band<-sapply(seq.band, weight.fun)
+    #count.cells.per.band<-sapply(seq.band, weight.fun)
 
-    weight.vals<-count.cells.per.band*(1/seq.band)
+    #weight.vals<-count.cells.per.band*(1/seq.band)
 
     #### Number of cells for each band of distance to CEHUM (the closeer the better)
     cell.per.band<-rmultinom(1, n.site[1], 1/seq.band)
@@ -162,7 +162,7 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
     for (i in 1:n.site){
 
             ### Probability of detection by site and occasion
-            p.det1<-plogis(alpha.det+beta.det*effort[i]))
+            p.det1<-plogis(alpha.det+beta.det*stdz.eff[i]))
 
             y0[i, ]<-rbinom(2, n0[i], p.det1)
 
@@ -170,7 +170,7 @@ ut.fun1<-function(n.site, transect.reps, tot.dist, n.occ, data.wasp){
 
    ## Bayesian modelling
     ### Data for the model
-    data.tot<-list(y0=y0, effort=effort, param=c(n0, alpha.det, beta.det),
+    data.tot<-list(y0=y0, effort=stdz.eff, param=c(n0, alpha.det, beta.det),
     mean.ndvi=cov.data$mean.ndvi, var.ndvi=cov.data$var.ndvi, pop.dens=cov.data$pop.dens,
      water.length=cov.data$water.length, land.cov=cov.data$land.cov)
 
