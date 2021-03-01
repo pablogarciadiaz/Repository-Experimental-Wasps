@@ -366,11 +366,19 @@ median.totdist<-median(tot.dist)
 
 median.totdist
 
-#### Export table
+#### Exporting results
 data.exp<-data.frame(mode.site=meanshift(n.site), mode.reps=meanshift(transect.reps), mode.totdist=meanshift(tot.dist),
     mean.site=mean(n.site), mean.reps=mean(transect.reps), mean.totdist=mean(tot.dist),
     median.site=median(n.site), median.reps=median(transect.reps), median.tot.dist=median(tot.dist))
 
 data.exp
 
-write.table(data.exp, "e:/CONTAIN/Experimental Design/Wasps/OptimalMH-Distance(RandomMSE).csv", sep=",")
+write.table(data.exp, "e:/CONTAIN/Experimental Design/Wasps/OptimalMH-EstimatedDistance(MSE).csv", sep=",")
+
+write.table(ut.sim, "e:/CONTAIN/Experimental Design/Wasps/OptimalMH-Utility(MSE).csv", sep=",")
+
+write.table(n.site, "e:/CONTAIN/Experimental Design/Wasps/OptimalMH-NumberofSites(MSE).csv", sep=",")
+
+write.table(transect.reps, "e:/CONTAIN/Experimental Design/Wasps/OptimalMH-RepeatsPerCell(MSE).csv", sep=",")
+
+write.table(tot.dist, "e:/CONTAIN/Experimental Design/Wasps/OptimalMH-TotalDistance(MSE).csv", sep=",")
